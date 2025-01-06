@@ -1,8 +1,6 @@
 ---
 import { SITE_TITLE } from '../consts';
 import '../styles/global.css';
-import GoogleAnalytics from './GoogleAnalytics.astro';
-import { GOOGLE_ANALYTICS_ID } from 'astro:env/client';
 
 interface Props {
 	title: string;
@@ -23,7 +21,7 @@ const { title, description } = Astro.props;
 	/>
 	<link
 		rel="icon"
-		href="/orangehtml.webp"
+		href="/logo.png"
 	/>
 	<meta
 		name="generator"
@@ -86,7 +84,4 @@ const { title, description } = Astro.props;
 		property="twitter:description"
 		content={description}
 	/>
-
-	<!-- Google tag (gtag.js) -->
-	<GoogleAnalytics id={GOOGLE_ANALYTICS_ID} />
 </head>

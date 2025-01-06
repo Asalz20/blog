@@ -1,9 +1,9 @@
 :root {
-	--accent: 255 152 0;
-	--foreground: 241 230 216;
-	--background: 0 0 19;
-	--background-secondary: 48 42 79;
-	--foreground-secondary: 147 147 147;
+	--accent: 163, 190, 140;
+	--foreground: 216, 222, 233;
+	--background: 46, 52, 64;
+	--background-secondary: 59, 66, 82;
+	--foreground-secondary: 167, 173, 186;
 }
 
 a {
