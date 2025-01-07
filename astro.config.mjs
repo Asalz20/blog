@@ -6,7 +6,7 @@ import tailwind from '@astrojs/tailwind';
 // import syntaxTheme from './orange-theme';
 
 export default defineConfig({
-	site: 'https://asalazar-dev.netlify.app',
+	site: 'https://asalazar.dev',
 	redirects: {
 		'/': '/blog',
 		'/projects/1': '/blog',
