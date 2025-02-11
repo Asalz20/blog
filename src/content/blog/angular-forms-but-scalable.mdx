@@ -1,0 +1,233 @@
+---
+title: 'Angular Forms, But Make It Scalable: A Config-Driven Approach'
+pubDate: '2025-02-08'
+description: 'Angular Forms, But Make It Scalable: A Config-Driven Approach'
+---
+
+## Inspired by the works of the Angular Team's documentation, this is my attempt of a Unified approach to creating dynamic, reusable forms
+
+Dynamic forms in Angular are a powerful way to build configurable UIs, but they can quickly become overcomplicated when multiple layers of configuration, directives, and validation logic are involved. I discovered that consolidating everything into a single reusable input component—our single source of truth—can simplify development, improve maintainability, and reduce bugs.
+
+In this post, I’ll walk you through my approach using generic examples (like `foo`, `bar`, and `exampleInput`) so you can apply these ideas to your own projects.
+
+## The Problem
+
+The original solution involved several moving parts:
+
+- A config file with numerous flags to control the behavior of each input.
+- Multiple directives for regex validation.
+- A reusable input component that implements `ControlValueAccessor`.
+- A dynamic template rendering inputs based on configuration.
+
+While this design provided flexibility, it made the codebase harder to understand and maintain. We ended up juggling state across the component and various directives, which increased the potential for bugs—especially when resetting the form or handling invalid input.
+
+## Our Solution: Single Source of Truth
+
+We decided to simplify the design by moving **all validation logic** into the reusable input component itself. This way, the component acts as the single source of truth, managing its own state and regex validation without relying on external directives. The config file defines our inputs, and the dynamic template renders them, but everything related to user input is handled by the component.
+
+### Benefits of This Approach
+
+- **Centralized Validation:** All regex logic is contained in one place, making it easier to maintain and extend.
+- **Simplified State Management:** The component manages its own state, including the last valid value, and handles form resets seamlessly.
+- **Cleaner Template:** With no extra directives to wire up, the template remains straightforward and declarative.
+- **Flexibility:** The config file drives the dynamic rendering and behavior without scattering logic across multiple files.
+
+## Config File for Dynamic Forms
+
+Our config file defines a list of controls. Instead of using multiple booleans, we use a single property—`validationMode`—to specify the type of validation for each input. Here’s an example using generic names:
+
+```typescript
+// controls.config.ts
+export interface ExampleControl {
+	label: string;
+	id: string;
+	type: 'text' | 'select' | 'checkbox';
+	controlName: string;
+	validationMode?: 'modeA' | 'modeB' | 'modeC' | 'none';
+	maxlength?: number;
+	dataId?: string;
+}
+
+export const exampleControls: ExampleControl[] = [
+	{
+		label: 'Example Input Foo',
+		id: 'fooInput',
+		type: 'text',
+		controlName: 'foo',
+		validationMode: 'modeA',
+		maxlength: 16,
+		dataId: 'fooInput',
+	},
+	{
+		label: 'Example Input Bar',
+		id: 'barInput',
+		type: 'text',
+		controlName: 'bar',
+		validationMode: 'modeB',
+		maxlength: 16,
+		dataId: 'barInput',
+	},
+	{
+		label: 'Example Input Baz',
+		id: 'bazInput',
+		type: 'text',
+		controlName: 'baz',
+		validationMode: 'numbersOnly',
+		maxlength: 8,
+		dataId: 'bazInput',
+	},
+];
+```
+
+## Dynamic Rendering The Template
+
+Using Angular’s \*ngFor directive, we render each control dynamically. The configuration file drives the template, keeping it clean and decoupled from the validation logic.
+
+```html
+<!-- example-form.component.html -->
+<ng-container *ngFor="let control of exampleControls">
+	<div class="col">
+		<example-text-input
+			*ngIf="control.type === 'text'"
+			[label]="control.label"
+			[id]="control.id"
+			[type]="control.type"
+			[dataId]="control.dataId"
+			[formControlName]="control.controlName"
+			[maxlength]="control.maxlength"
+			[validationMode]="control.validationMode"
+		>
+		</example-text-input>
+	</div>
+</ng-container>
+```
+
+## The Reusable Text Input Component
+
+Our `ExampleTextInputComponent` is built as a reusable component implementing `ControlValueAccessor`. It is responsible for handling user input, performing regex validation, and maintaining its own state. All validation logic based on the `validationMode` is centralized here.
+
+```typescript
+// example-text-input.component.ts
+import { Component, forwardRef, Input } from '@angular/core';
+import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+
+@Component({
+	selector: 'example-text-input',
+	template: `
+		<div class="form-group mb-2">
+			<label [for]="id">{{ label }}</label>
+			<input
+				[attr.data-testid]="dataId"
+				[type]="type"
+				[id]="id"
+				class="form-control"
+				[attr.maxlength]="maxlength"
+				[value]="value"
+				(input)="handleInput($event)"
+				[disabled]="isDisabled"
+			/>
+		</div>
+	`,
+	providers: [
+		{
+			provide: NG_VALUE_ACCESSOR,
+			useExisting: forwardRef(() => ExampleTextInputComponent),
+			multi: true,
+		},
+	],
+})
+export class ExampleTextInputComponent implements ControlValueAccessor {
+	@Input() label: string;
+	@Input() id: string;
+	@Input() type: string = 'text';
+	@Input() maxlength: number;
+	@Input() dataId: string;
+
+	// Single validation mode controlling regex logic
+	@Input() validationMode?:
+		| 'modeA'
+		| 'modeB'
+		| 'modeC'
+		| 'numbersOnly'
+		| 'none';
+
+	value: string = '';
+	isDisabled: boolean = false;
+
+	// To keep track of the last valid value
+	private lastValidValue: string = '';
+
+	onChange = (_: any) => {};
+	onTouched = () => {};
+
+	// Called when Angular updates the form value (e.g., on form reset)
+	writeValue(value: any): void {
+		this.value = value ?? '';
+		this.lastValidValue = this.value;
+	}
+	registerOnChange(fn: any): void {
+		this.onChange = fn;
+	}
+	registerOnTouched(fn: any): void {
+		this.onTouched = fn;
+	}
+	setDisabledState?(disabled: boolean): void {
+		this.isDisabled = disabled;
+	}
+
+	handleInput(event: Event): void {
+		const inputEl = event.target as HTMLInputElement;
+		const rawValue = inputEl.value;
+
+		if (this.checkValidity(rawValue)) {
+			// Accept valid input and update the last valid value
+			this.value = rawValue;
+			this.lastValidValue = rawValue;
+		} else {
+			// For invalid input, revert to the last valid value
+			inputEl.value = this.lastValidValue;
+		}
+		this.onChange(this.value);
+	}
+
+	/**
+	 * Determines whether the input is valid based on the selected validation mode.
+	 */
+	private checkValidity(value: string): boolean {
+		switch (this.validationMode) {
+			case 'modeA':
+				// Example: allow an optional letter (e.g., 'X' or 'x') at the start, followed by digits.
+				return /^[Xx]?\d*$/.test(value);
+			case 'modeB':
+				// Example: allow an optional letter (e.g., 'Y' or 'y') at the start, followed by digits.
+				return /^[Yy]?\d*$/.test(value);
+			case 'modeC':
+				// Example: allow an optional letter (e.g., 'Z' or 'z') at the start, followed by digits.
+				return /^[Zz]?\d*$/.test(value);
+			case 'numbersOnly':
+				return /^\d*$/.test(value);
+			case 'none':
+			default:
+				// If no validation mode is specified, accept any input.
+				return true;
+		}
+	}
+}
+```
+
+### Key Points
+
+- Single Source of Truth:
+  The input component handles all aspects of validation and state management. It’s the only place where regex patterns and validation logic reside.
+
+- Dynamic Behavior:
+  The component’s behavior is determined by the validationMode property passed from the config file. This makes the component highly reusable and adaptable without additional directives or external logic.
+
+- Ease of Maintenance:
+  With the validation logic centralized, any updates to regex patterns or validation rules require changes in only one place.
+
+## Conclusion
+
+By consolidating our dynamic form logic into a single, reusable input component, we eliminated unnecessary complexity and achieved a maintainable, scalable solution. The config file continues to serve as our blueprint for form structure, while the component handles state, validation, and communication with Angular’s reactive forms.
+
+Hopefully this inspires you to take on your own approach to a dynamic reusable forms in Angular!
