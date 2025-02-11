@@ -12,7 +12,7 @@ In this post, I’ll walk you through my approach using generic examples (like `
 
 ## The Problem
 
-The original solution involved several moving parts:
+The original implementation involved several moving parts:
 
 - A config file with numerous flags to control the behavior of each input.
 - Multiple directives for regex validation.
@@ -34,7 +34,7 @@ We decided to simplify the design by moving **all validation logic** into the re
 
 ## Config File for Dynamic Forms
 
-Our config file defines a list of controls. Instead of using multiple booleans, we use a single property—`validationMode`—to specify the type of validation for each input. Here’s an example using generic names:
+Our config file defines a list of controls. We use a single property—`validationMode`—to specify the type of validation for each input. Here’s an example using generic names:
 
 ```typescript
 // controls.config.ts
